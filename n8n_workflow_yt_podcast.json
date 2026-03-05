@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.PODCAST_WEBHOOK_URL }}/process-video",
+        "url": "https://pocket-bon-tells-absolute.trycloudflare.com/process-video",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
