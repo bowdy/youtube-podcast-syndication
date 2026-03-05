@@ -1,0 +1,210 @@
+{
+  "name": "YouTube → Podcast Auto-Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLyllLDsqv2ZI0ZvLf9vyww",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "rss-trigger",
+      "name": "YouTube RSS",
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.PODCAST_WEBHOOK_URL }}/process-video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ youtube_url: $json.link }) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "process-video",
+      "name": "Process Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-success",
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "episode_id",
+              "name": "episode_id",
+              "value": "={{ $json.episode_id }}",
+              "type": "string"
+            },
+            {
+              "id": "podcast_title",
+              "name": "podcast_title",
+              "value": "={{ $json.podcast_title }}",
+              "type": "string"
+            },
+            {
+              "id": "total_episodes",
+              "name": "total_episodes",
+              "value": "={{ $json.total_episodes }}",
+              "type": "number"
+            },
+            {
+              "id": "rss_url",
+              "name": "rss_url",
+              "value": "={{ $json.rss_url }}",
+              "type": "string"
+            },
+            {
+              "id": "mp3_url",
+              "name": "mp3_url",
+              "value": "={{ $json.mp3_url }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "success-output",
+      "name": "Episode Published",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ $json.error || 'Unknown error' }}",
+              "type": "string"
+            },
+            {
+              "id": "youtube_url",
+              "name": "youtube_url",
+              "value": "={{ $('YouTube RSS').item.json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "video_title",
+              "name": "video_title",
+              "value": "={{ $('YouTube RSS').item.json.title }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "error-output",
+      "name": "Error Details",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 400]
+    }
+  ],
+  "connections": {
+    "YouTube RSS": {
+      "main": [
+        [
+          {
+            "node": "Process Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Video": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Episode Published",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "podcast"
+    }
+  ]
+}
